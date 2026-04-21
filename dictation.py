@@ -27,7 +27,8 @@ from typing import List
 import numpy as np
 import sherpa_onnx
 import sounddevice as sd
-from pynput.keyboard import Controller as KbController
+from pynput.keyboard import Controller as KbController, Key
+from pynput.mouse import Controller as MouseController
 
 import pywinusb.hid as hid
 from read_media_keys import TARGET_VID, TARGET_PID, BITMAP_HINTS
@@ -38,6 +39,11 @@ from read_media_keys import TARGET_VID, TARGET_PID, BITMAP_HINTS
 SAMPLE_RATE   = 16_000
 CHANNELS      = 1
 FAST_BACKWARD = (2, 0x08)   # hold-to-record trigger key
+NEW_KEY       = (2, 0x04)   # trigger one escape on press
+F1_KEY        = (2, 0x40)   # trigger one backspace on press
+REW_KEY       = (1, 0x04)   # trigger one enter on press
+FF_KEY        = (1, 0x08)   # trigger mouse scroll down
+INSERT_OVER   = (4, 0x01)   # trigger mouse scroll up
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Audio recording helpers
@@ -144,6 +150,7 @@ def run(model_dir: str, vid: int, pid: int):
     recognizer = build_recognizer(model_dir)
     capture    = AudioCapture()
     keyboard   = KbController()
+    mouse      = MouseController()
 
     last_bits: set = set()
     recording  = False
@@ -157,6 +164,29 @@ def run(model_dir: str, vid: int, pid: int):
         pressed  = current - last_bits
         released = last_bits - current
         last_bits = current
+
+        if NEW_KEY in pressed:
+            keyboard.press(Key.esc)
+            keyboard.release(Key.esc)
+            print("[KEY] Esc (NEW)")
+
+        if F1_KEY in pressed:
+            keyboard.press(Key.backspace)
+            keyboard.release(Key.backspace)
+            print("[KEY] Backspace (F1)")
+
+        if REW_KEY in pressed:
+            keyboard.press(Key.enter)
+            keyboard.release(Key.enter)
+            print("[KEY] Enter (REW)")
+
+        if FF_KEY in pressed:
+            mouse.scroll(0, -4)
+            print("[MOUSE] ScrollDown (FF)")
+
+        if INSERT_OVER in pressed:
+            mouse.scroll(0, 4)
+            print("[MOUSE] ScrollUp (INSERT_OVER)")
 
         if FAST_BACKWARD in pressed and not recording:
             recording = True
@@ -206,9 +236,7 @@ def run(model_dir: str, vid: int, pid: int):
 # ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    default_model = str(
-        Path(__file__).parent / "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
-    )
+    default_model = r"C:\Users\<you>\.local\share\picc\sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
     parser = argparse.ArgumentParser(description="OLYMPUS DR dictation tool")
     parser.add_argument(
         "--model-dir",
