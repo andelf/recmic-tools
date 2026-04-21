@@ -69,7 +69,7 @@ def run(vid: int, pid: int, duration: int):
 
         if state_pressed or state_released:
             new_states = current & STATE_BITS
-            labels = " | ".join(bit_label(b) for b in sorted(new_states)) or "IDLE"
+            labels = " | ".join(bit_label(b) for b in sorted(new_states)) or "SCAN_BACKWARD"
             print(f"[{ts}] STATE  -> {labels}")
 
         for bit in sorted(key_pressed):
