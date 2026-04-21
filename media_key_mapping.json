@@ -1,0 +1,11 @@
+{
+  "vid": "0x07B4",
+  "pid": "0x0256",
+  "generated_at": 1776785697,
+  "mapping": {
+    "test_key": {
+      "bits": [],
+      "report_id": 0
+    }
+  }
+}
