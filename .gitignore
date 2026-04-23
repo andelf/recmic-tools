@@ -3,3 +3,9 @@ __pycache__/
 .venv/
 *.egg-info/
 .env
+
+# Generated logs
+*.jsonl
+
+# One-off scratch analysis scripts
+analysis/_tmp_*.py
