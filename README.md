@@ -1,69 +1,72 @@
 # OLYMPUS DR Series HID Tools
 
-This repository contains reverse-engineering notes and executable tools for the OLYMPUS DR Series USB/HID device on Windows.
+This repository contains practical tools and reverse-engineering scripts for an OLYMPUS DR Series USB/HID device on Windows.
 
-## Core Scripts
+## What Is Stable Now
 
-These are the main entry points worth keeping at the repository root.
+Primary workflow at repository root:
 
 - `dictation.py`
-  - Dictation workflow using sherpa-onnx SenseVoice.
-  - Hold `FAST_BACKWARD` to record, release to recognize and type text.
+  - Main dictation runtime (`sherpa-onnx` + SenseVoice).
+  - Hold `FAST_BACKWARD` to start recording, release to run ASR and type text.
 - `read_media_keys.py`
   - Real-time HID reader and bitmask parser.
-  - Contains the current confirmed key mapping table.
+  - Source of truth for current button-bit mapping.
 - `keys_monitor.py`
-  - Human-readable key/state monitor for quick validation.
+  - Human-readable state transitions for key validation.
 - `print_current_state.py`
-  - Dumps current HID raw reports and state snapshots.
+  - Raw HID snapshot/debug output.
+- `create_dictation_shortcut.py`
+  - One-command setup helper (`.venv`, dependencies, desktop shortcut).
 
-## Analysis Scripts
+## Current Dictation Key Actions
 
-Analysis and reverse-engineering helpers are kept under `analysis/`.
+Runtime actions configured in `dictation.py`:
 
-Typical uses:
+- `FAST_BACKWARD`: hold to record, release to transcribe/type.
+- `NEW`: sends `Esc`.
+- `F1`: sends `Ctrl+C`.
+- `F2`: types `continue`.
+- `F4`: sends `Backspace`.
+- `REW`: sends `Enter`.
+- `FF`: mouse wheel down.
+- `INSERT_OVER`: mouse wheel up.
 
-- Parse USBPcap captures
-- Diff `INSERT_OVER` state transitions
-- Inspect candidate LED control traffic
-- Summarize follow-up logs
+## Repository Layout
 
-## Captures
+- Root directory:
+  - Runtime scripts, setup script, key mapping file, and capture files (`*.pcap`).
+- `analysis/`:
+  - Protocol/pcap analysis scripts and replay experiments.
+  - `qwen3_integration_research.md`: quick feasibility research for Qwen3/Qwen3-ASR integration.
+  - `_tmp_*.py` files are scratch probes used during reverse engineering.
 
-The `.pcap` files in the repository root are the original USBPcap captures used during investigation.
+## Current Device / Protocol Findings
 
-Current captures include:
-
-- `usb-1.3.2.pcap`
-- `usb13.pcap`
-- `usb233。.pcap`
-
-## Current Findings
-
-- Device: `VID:PID = 07B4:0256`
-- Input state is reported through HID interrupt IN reports.
-- `INSERT_OVER` transitions correlate with host-side HID `SET_REPORT(Output)` control transfers on `EP0`.
-- Candidate LED-related writes use:
+- Target device: `VID:PID = 07B4:0256`.
+- Input state comes from HID interrupt IN reports.
+- `INSERT_OVER` transitions correlate with host HID `SET_REPORT(Output)` on `EP0`.
+- Observed LED-related control pattern:
   - `bmRequestType=0x21`
   - `bRequest=0x09`
   - `wValue=0x0200`
   - `wIndex=0x0000`
   - `wLength=64`
-- Direct replay of candidate 64-byte output reports has not yet reproduced LED activation, so some missing context likely still exists.
+- Replaying candidate 64-byte output reports still does not reproduce LED behavior reliably; device/session context is likely missing.
 
 ## Environment
 
-Tested on Windows with Python 3.12 and a local virtual environment.
+- OS: Windows
+- Python: 3.12
+- Recommended: local `.venv`
 
-Dependencies are managed in `requirements.txt`.
-
-Install them with:
+Dependencies are listed in `requirements.txt`.
 
 ```powershell
 python -m pip install -r .\requirements.txt
 ```
 
-Main third-party packages used in this repository:
+Main packages:
 
 - `pywinusb`
 - `sherpa-onnx`
@@ -71,34 +74,33 @@ Main third-party packages used in this repository:
 - `numpy`
 - `pynput`
 
-You can also run one-click setup to create `.venv`, install dependencies, and create a desktop shortcut:
+## Quick Start
+
+Create environment + install deps + desktop shortcut:
 
 ```powershell
 python .\create_dictation_shortcut.py
 ```
 
-## Quick Start
-
-Read HID state:
+Monitor HID reports:
 
 ```powershell
 python .\read_media_keys.py
 ```
 
-Monitor readable key transitions:
+Run readable key monitor:
 
 ```powershell
 python .\keys_monitor.py
 ```
 
-Run dictation:
+Start dictation runtime:
 
 ```powershell
 python .\dictation.py
 ```
 
-## Repository Notes
+## Notes
 
-- Temporary scratch scripts are not part of the main workflow.
-- Generated logs and cache files are ignored by git.
-- The repository currently focuses on reliable monitoring and protocol analysis; LED replay remains unresolved.
+- Analysis scripts are intentionally separated under `analysis/`.
+- Scratch scripts can be cleaned up later if you want a stricter production-only repository layout.

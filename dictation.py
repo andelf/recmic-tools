@@ -40,7 +40,9 @@ SAMPLE_RATE   = 16_000
 CHANNELS      = 1
 FAST_BACKWARD = (2, 0x08)   # hold-to-record trigger key
 NEW_KEY       = (2, 0x04)   # trigger one escape on press
-F1_KEY        = (2, 0x40)   # trigger one backspace on press
+F1_KEY        = (2, 0x40)   # trigger Ctrl+C on press
+F2_KEY        = (2, 0x80)   # type 'continue' on press
+F4_KEY        = (3, 0x40)   # trigger one backspace on press
 REW_KEY       = (1, 0x04)   # trigger one enter on press
 FF_KEY        = (1, 0x08)   # trigger mouse scroll down
 INSERT_OVER   = (4, 0x01)   # trigger mouse scroll up
@@ -171,9 +173,20 @@ def run(model_dir: str, vid: int, pid: int):
             print("[KEY] Esc (NEW)")
 
         if F1_KEY in pressed:
+            keyboard.press(Key.ctrl)
+            keyboard.press("c")
+            keyboard.release("c")
+            keyboard.release(Key.ctrl)
+            print("[KEY] Ctrl+C (F1)")
+
+        if F4_KEY in pressed:
             keyboard.press(Key.backspace)
             keyboard.release(Key.backspace)
-            print("[KEY] Backspace (F1)")
+            print("[KEY] Backspace (F4)")
+
+        if F2_KEY in pressed:
+            keyboard.type("continue")
+            print("[KEY] Type 'continue' (F2)")
 
         if REW_KEY in pressed:
             keyboard.press(Key.enter)
