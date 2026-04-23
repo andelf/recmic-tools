@@ -55,13 +55,27 @@ Current captures include:
 
 Tested on Windows with Python 3.12 and a local virtual environment.
 
-Common packages used in this repository:
+Dependencies are managed in `requirements.txt`.
+
+Install them with:
+
+```powershell
+python -m pip install -r .\requirements.txt
+```
+
+Main third-party packages used in this repository:
 
 - `pywinusb`
 - `sherpa-onnx`
 - `sounddevice`
 - `numpy`
 - `pynput`
+
+You can also run one-click setup to create `.venv`, install dependencies, and create a desktop shortcut:
+
+```powershell
+python .\create_dictation_shortcut.py
+```
 
 ## Quick Start
 

@@ -14,6 +14,7 @@ PACKAGES = [
     "pynput",
     "pywinusb",
 ]
+REQUIREMENTS_FILE = "requirements.txt"
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -42,13 +43,20 @@ def ensure_venv(repo_dir: Path, dry_run: bool) -> Path:
 
 def install_dependencies(venv_python: Path, repo_dir: Path, dry_run: bool) -> None:
     print("[INFO] Installing/updating Python dependencies...")
+    req_path = repo_dir / REQUIREMENTS_FILE
     if dry_run:
         print(f"[DRY] Would run: {venv_python} -m pip install --upgrade pip setuptools wheel")
-        print(f"[DRY] Would run: {venv_python} -m pip install {' '.join(PACKAGES)}")
+        if req_path.exists():
+            print(f"[DRY] Would run: {venv_python} -m pip install -r {req_path}")
+        else:
+            print(f"[DRY] Would run: {venv_python} -m pip install {' '.join(PACKAGES)}")
         return
 
     run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"], cwd=repo_dir)
-    run([str(venv_python), "-m", "pip", "install", *PACKAGES], cwd=repo_dir)
+    if req_path.exists():
+        run([str(venv_python), "-m", "pip", "install", "-r", str(req_path)], cwd=repo_dir)
+    else:
+        run([str(venv_python), "-m", "pip", "install", *PACKAGES], cwd=repo_dir)
 
 
 def create_shortcut(
