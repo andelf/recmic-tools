@@ -1,0 +1,5 @@
+pywinusb
+numpy
+sherpa-onnx
+sounddevice
+pynput
