@@ -1,5 +1,7 @@
 # OLYMPUS DR Series HID Tools
 
+[简体中文](README.zh-CN.md) | English
+
 This repository contains practical tools and reverse-engineering scripts for an OLYMPUS DR Series USB/HID device on Windows.
 
 ## What Is Stable Now
@@ -23,14 +25,17 @@ Primary workflow at repository root:
 
 Runtime actions configured in `dictation.py`:
 
-- `FAST_BACKWARD`: hold to record, release to transcribe/type.
-- `NEW`: sends `Esc`.
-- `F1`: sends `Ctrl+C`.
-- `F2`: types `continue`.
-- `F4`: sends `Backspace`.
-- `REW`: sends `Enter`.
-- `FF`: mouse wheel down.
-- `INSERT_OVER`: mouse wheel up.
+| Key             | Action                              |
+|-----------------|-------------------------------------|
+| `FAST_BACKWARD` | Hold to record, release to transcribe/type |
+| `NEW`           | Sends `Esc`                         |
+| `F1`            | Sends `Ctrl+C`                      |
+| `F2`            | Types `continue`                    |
+| `F3`            | Sends `Ctrl+Enter`                  |
+| `F4`            | Sends `Backspace`                   |
+| `REW`           | Sends `Enter`                       |
+| `FF`            | Mouse wheel down                    |
+| `INSERT_OVER`   | Mouse wheel up                      |
 
 ## Repository Layout
 
@@ -99,6 +104,17 @@ Start dictation runtime:
 ```powershell
 python .\dictation.py
 ```
+
+## ASR Model Setup
+
+Download and extract the SenseVoice model (or pass `--model-dir` to point to your path):
+
+```
+https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
+sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2
+```
+
+Supports Chinese, English, Japanese, Korean, and Cantonese with automatic language detection and ITN (inverse text normalization).
 
 ## Notes
 
