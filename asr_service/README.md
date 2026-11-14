@@ -172,3 +172,7 @@ asr_service/
   asr-qwen.service      gpu-box 的 systemd user unit
 start_asr_gateway.bat   本机网关启动脚本
 ```
+
+## 许可证
+
+与仓库根目录一致，[MIT](../LICENSE)。ASR 模型权重不在此范围内，遵循各自的上游许可。

@@ -237,3 +237,22 @@ detection and inverse text normalisation (ITN).
 - `logs/` and `*.bmp` are runtime artefacts and screen captures; both are
   gitignored.
 - Scratch scripts can be cleaned up later if you want a stricter production-only repository layout.
+
+## License
+
+[MIT](LICENSE) © 2026 Andelf.
+
+The MIT terms cover this repository's own code. Two things sit outside it:
+
+**Models.** ASR weights are downloaded separately and keep their upstream
+licenses — SenseVoice under FunASR's terms, Qwen3-ASR under Alibaba's. Check
+those before redistributing or using them commercially.
+
+**Dependencies.** Pulled in at install time, each under its own license:
+`sherpa-onnx` (Apache-2.0), `fastapi` (MIT), `python-multipart` (Apache-2.0),
+`uvicorn` / `numpy` / `soundfile` (BSD-3-Clause), `sounddevice` (MIT),
+`pywinusb` (BSD), `pynput` (LGPLv3 — imported at runtime, never modified).
+
+The USB captures and protocol analysis under `analysis/` are original work
+derived from observing a device you own; they are provided for interoperability
+and are covered by the same MIT terms.

@@ -233,3 +233,20 @@ sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2
 - 分析脚本有意放在 `analysis/` 子目录下，与生产脚本分离。
 - `logs/` 与 `*.bmp` 是运行产物和截图，已在 `.gitignore` 中排除。
 - 临时探针脚本后续可根据需要清理，以维护更严格的生产目录结构。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 Andelf。
+
+MIT 只覆盖本仓库自身的代码，有两块不在其中：
+
+**模型。** ASR 权重需另行下载，遵循各自的上游许可——SenseVoice 遵循 FunASR
+的条款，Qwen3-ASR 遵循阿里侧的条款。再分发或商用前请自行核对。
+
+**依赖。** 安装时拉取的库各有各的许可证：`sherpa-onnx`（Apache-2.0）、
+`fastapi`（MIT）、`python-multipart`（Apache-2.0）、`uvicorn` / `numpy` /
+`soundfile`（BSD-3-Clause）、`sounddevice`（MIT）、`pywinusb`（BSD）、
+`pynput`（LGPLv3，运行时导入，未做修改）。
+
+`analysis/` 下的 USB 抓包与协议分析是基于自有设备观察得到的原创内容，
+为互操作性目的提供，同样适用 MIT 条款。
