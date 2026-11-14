@@ -3,3 +3,9 @@ numpy
 sherpa-onnx
 sounddevice
 pynput
+
+# ASR gateway (asr_service/gateway.py)
+fastapi
+uvicorn[standard]
+python-multipart
+soundfile

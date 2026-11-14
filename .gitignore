@@ -4,8 +4,10 @@ __pycache__/
 *.egg-info/
 .env
 
-# Generated logs
+# Generated logs and screenshot captures
 *.jsonl
+logs/
+*.bmp
 
 # One-off scratch analysis scripts
 analysis/_tmp_*.py

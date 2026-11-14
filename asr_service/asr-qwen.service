@@ -1,0 +1,20 @@
+[Unit]
+Description=Qwen3-ASR HTTP service (RTX 5080)
+Documentation=https://github.com/QwenLM/Qwen3-ASR
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/voice/asr_service
+Environment=ASR_PORT=8790
+Environment=ASR_HOST=0.0.0.0
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/voice/.venv/bin/python /opt/voice/asr_service/remote_server.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+StandardOutput=append:/opt/voice/logs/asr_server.log
+StandardError=append:/opt/voice/logs/asr_server.log
+
+[Install]
+WantedBy=default.target
