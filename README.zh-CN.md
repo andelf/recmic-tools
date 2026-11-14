@@ -144,6 +144,30 @@ python .\dictation.py --dry-run              # 只打印识别结果，不输入
 python .\dictation.py --dry-run --simulate 4 # 合成一次 4 秒的按下/松开周期
 ```
 
+## 音频输入
+
+录音默认锁定录音笔自己的 USB 音频接口，而不是 Windows 当前的默认设备：
+
+```powershell
+python .\dictation.py                             # 名称含 "Microphone Contr" 的第一个输入
+python .\dictation.py --device default            # 改为跟随 Windows 默认设备
+python .\dictation.py --device 2                  # 或直接指定 PortAudio 索引
+python .\dictation.py --device "High Definition"  # 或按名称子串匹配
+```
+
+找不到录音笔会直接报错，而不是悄悄回退。回退的后果是 dictation 看起来照常工作，
+实际录的是笔记本内置麦克风，识别结果一塌糊涂却没有任何报错。启动时会打印实际
+选中的设备、host API 和增益值。
+
+两个值得知道的硬件事实：
+
+- 设备**只支持 44.1 kHz**。16 kHz 能跑是因为 MME 那一路由 PortAudio 代做重采样；
+  WASAPI 会直接拒绝 16 kHz。`pick_input_device()` 用 `check_input_settings()`
+  逐个握手试探，优先选真能打开的那一路。
+- 说话电平只有 **-50 dBFS** 左右——SenseVoice 够用，做唤醒词就偏薄。可用
+  `--gain 4` 抬高。增益在电平表之前施加，所以柱子、dBFS 报告和送进 ASR 的音频
+  三者一致。每次录音都会打印本次峰值，若说话仍在 -45 dBFS 以下会提示加大增益。
+
 ## 快速开始
 
 **创建虚拟环境 + 安装依赖 + 生成桌面快捷方式：**

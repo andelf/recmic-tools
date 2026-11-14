@@ -144,6 +144,33 @@ python .\dictation.py --dry-run              # print the transcript, never type 
 python .\dictation.py --dry-run --simulate 4 # synthesise one 4 s press/release cycle
 ```
 
+## Audio Input
+
+Recording is pinned to the recorder's own USB interface rather than to whatever
+Windows currently calls the default:
+
+```powershell
+python .\dictation.py                             # first input matching "Microphone Contr"
+python .\dictation.py --device default            # follow the Windows default instead
+python .\dictation.py --device 2                  # or an explicit PortAudio index
+python .\dictation.py --device "High Definition"  # or a name substring
+```
+
+A missing recorder is an error, not a silent fallback. Falling back would keep
+dictation "working" while capturing the laptop microphone, and the garbled
+transcripts would look like an ASR problem. On startup the app prints the
+resolved device, its host API and the gain in effect.
+
+Two hardware facts worth knowing:
+
+- The device is **44.1 kHz only**. 16 kHz works through MME because PortAudio
+  resamples for us; WASAPI rejects 16 kHz outright. `pick_input_device()` probes
+  each host API with `check_input_settings()` and prefers one that really opens.
+- Speech sits near **-50 dBFS** — enough for SenseVoice, thin for wake-word
+  detection. `--gain 4` lifts it. Gain is applied before the level meter, so the
+  bars, the dBFS report and the audio sent to ASR all agree. Every session logs
+  its peak and suggests a higher gain if speech still lands below -45 dBFS.
+
 ## Quick Start
 
 Create environment + install deps + desktop shortcut:

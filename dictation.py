@@ -5,6 +5,19 @@ Workflow:
   1. Hold FAST_BACKWARD on the device  → starts audio capture
   2. Release FAST_BACKWARD             → stops capture, runs ASR, types result
 
+Audio input:
+  Captured from the recorder's own USB audio interface, matched by --device
+  (default: the first input whose name contains "Microphone Contr").  Windows can
+  silently point its default at another microphone, so a missing recorder is an
+  error instead of a quiet fallback to the laptop mic — that would keep working
+  while producing transcripts that look like an ASR failure.
+
+  The hardware runs at 44.1 kHz only, so PortAudio resamples to 16 kHz through
+  MME (WASAPI refuses 16 kHz on this device).  It is also quiet: speech sits
+  near -50 dBFS.  That is enough for SenseVoice but thin for wake-word
+  detection, so --gain 4 helps.  Gain is applied before the level meter, so the
+  bars, the dBFS report and the audio sent to ASR all agree.
+
 ASR routing:
   By default audio is sent to the local ASR gateway (asr_service/gateway.py),
   which prefers the Qwen3-ASR GPU box (192.0.2.175) and falls back to the
@@ -61,6 +74,13 @@ from overlay import create_overlay
 # ──────────────────────────────────────────────────────────────────────────────
 SAMPLE_RATE   = 16_000
 CHANNELS      = 1
+# The DR recorder exposes itself as a USB audio interface named
+# "Microphone (2- Microphone Control (DR))".  Matching on that instead of
+# trusting the Windows default keeps dictation from silently switching to the
+# laptop microphone when the recorder is unplugged.  The hint stops short of
+# "Control" because MME truncates device names at 31 characters — the MME entry
+# reads "Microphone (2- Microphone Contr".
+DEVICE_HINT   = "Microphone Contr"
 FAST_BACKWARD = (2, 0x08)   # hold-to-record trigger key
 NEW_KEY       = (2, 0x04)   # trigger one escape on press
 F1_KEY        = (2, 0x40)   # trigger Ctrl+C on press
@@ -79,6 +99,92 @@ TICK_MS       = 16          # overlay refresh interval (~60 fps)
 # ──────────────────────────────────────────────────────────────────────────────
 # Audio recording helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
+def _input_devices():
+    return [
+        (i, d)
+        for i, d in enumerate(sd.query_devices())
+        if d["max_input_channels"] > 0
+    ]
+
+
+def _hostapi_name(dev_info) -> str:
+    try:
+        return sd.query_hostapis(dev_info["hostapi"])["name"]
+    except Exception:  # noqa: BLE001
+        return "?"
+
+
+def pick_input_device(spec: Optional[str]):
+    """Resolve a --device spec into a ``(index, device_info)`` pair.
+
+    ``spec`` may be a PortAudio index, a case-insensitive name substring, or
+    "default"/"any" to keep whatever Windows currently points at.
+
+    With no spec at all the recorder is *required* instead of inferred from the
+    system default. The HID side already refuses to start without the device, so
+    falling back to the laptop microphone would only produce transcripts that
+    look like an ASR failure while everything reports success.
+    """
+    devices = _input_devices()
+    if not devices:
+        sys.exit("[!] No audio input devices found.")
+
+    raw = (spec or "").strip()
+    lowered = raw.lower()
+
+    if lowered in ("default", "any"):
+        idx = sd.default.device[0]
+        if idx is None or idx < 0:
+            sys.exit("[!] Windows has no default recording device; pass --device.")
+        return idx, sd.query_devices(idx)
+
+    if raw.isdigit():
+        idx = int(raw)
+        info = sd.query_devices(idx)
+        if info["max_input_channels"] <= 0:
+            sys.exit(f"[!] Device {idx} is not an input device.")
+        return idx, info
+
+    needle = lowered or DEVICE_HINT.lower()
+    matches = [(i, d) for i, d in devices if needle in d["name"].lower()]
+    if not matches:
+        listing = "\n".join(
+            f"  [{i}] {d['name']}  ({_hostapi_name(d)})" for i, d in devices
+        )
+        sys.exit(
+            f"[!] No input device matching {needle!r}.\n{listing}\n"
+            f"    Pass --device <index|name>, or --device default to follow Windows."
+        )
+
+    # Several host APIs expose the same hardware, and only some of them can
+    # open it at 16 kHz — WASAPI refuses outright because the device is 44.1 kHz
+    # native. So ask PortAudio instead of guessing from the name, then prefer
+    # MME among the survivors (it is the path that has always worked here).
+    usable = []
+    for idx, info in matches:
+        try:
+            sd.check_input_settings(
+                device=idx,
+                samplerate=SAMPLE_RATE,
+                channels=CHANNELS,
+                dtype="float32",
+            )
+            usable.append((idx, info))
+        except Exception:  # noqa: BLE001
+            continue
+
+    pool = usable or matches
+    pool.sort(
+        key=lambda p: (_hostapi_name(p[1]) != "MME", p[1]["max_input_channels"])
+    )
+    if not usable:
+        print(
+            f"[MIC] warning: no match accepts {SAMPLE_RATE} Hz; "
+            f"falling back to {pool[0][1]['name']!r} and letting PortAudio try"
+        )
+    return pool[0]
+
 
 class AudioCapture:
     """Accumulates float32 mono 16 kHz samples while open.
@@ -101,22 +207,27 @@ class AudioCapture:
     _DB_CEIL = -10.0
     _PEAK_FLOOR = 0.02
 
-    def __init__(self):
+    def __init__(self, device: Optional[int] = None, gain: float = 1.0):
         self._chunks: List[np.ndarray] = []
         self._stream: sd.InputStream | None = None
         self._lock = threading.Lock()
+        self.device = device
+        self.gain = gain
         self.level: float = 0.0
         self._peak: float = 0.0
+        self._loudest: float = 0.0    # loudest RMS seen this session, for diagnostics
 
     def start(self):
         with self._lock:
             self._chunks.clear()
             self.level = 0.0
             self._peak = 0.0
+            self._loudest = 0.0
             self._stream = sd.InputStream(
                 samplerate=SAMPLE_RATE,
                 channels=CHANNELS,
                 dtype="float32",
+                device=self.device,
                 callback=self._cb,
             )
             self._stream.start()
@@ -133,12 +244,29 @@ class AudioCapture:
             else:
                 audio = np.zeros(0, dtype="float32")
             self.level = 0.0
-            print(f"[REC] ■ stopped  ({len(audio)/SAMPLE_RATE:.2f}s)")
+            peak_db = 20.0 * math.log10(self._loudest + 1e-9)
+            print(
+                f"[REC] ■ stopped  ({len(audio)/SAMPLE_RATE:.2f}s)"
+                f"  peak {peak_db:.1f} dBFS"
+            )
+            if 0.0 < self._loudest and peak_db < -45.0 and self.gain < 32.0:
+                print(
+                    f"[REC] input is quiet — try --gain {self.gain * 4:g} "
+                    "if recognition is poor"
+                )
             return audio
 
     def _cb(self, indata, frames, time_info, status):
-        self._chunks.append(indata.copy())
-        rms = float(np.sqrt(np.mean(np.square(indata, dtype=np.float32))))
+        # Gain is applied before anything is measured, so the level indicator,
+        # the dBFS diagnostic and the audio sent to ASR all agree.
+        if self.gain == 1.0:
+            block = indata.copy()
+        else:
+            block = np.clip(indata * self.gain, -1.0, 1.0)
+        self._chunks.append(block)
+        rms = float(np.sqrt(np.mean(np.square(block, dtype=np.float32))))
+        if rms > self._loudest:
+            self._loudest = rms
 
         db = 20.0 * math.log10(rms + 1e-9)
         absolute = (db - self._DB_FLOOR) / (self._DB_CEIL - self._DB_FLOOR)
@@ -486,12 +614,26 @@ def _repeat_backspace(held: threading.Event, stop: threading.Event, emit) -> Non
                     time.sleep(0.005)
 
 
-def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: float = 0.0):
+def run(
+    client: AsrClient,
+    vid: int,
+    pid: int,
+    dry_run: bool = False,
+    simulate: float = 0.0,
+    device_spec: Optional[str] = None,
+    gain: float = 1.0,
+):
     devices = hid.HidDeviceFilter(vendor_id=vid, product_id=pid).get_devices()
     if not devices:
         sys.exit(f"[!] Device VID:{vid:04X} PID:{pid:04X} not found.")
 
-    capture    = AudioCapture()
+    mic_index, mic_info = pick_input_device(device_spec)
+    print(
+        f"[MIC] {mic_info['name']} (index {mic_index}, {_hostapi_name(mic_info)})"
+        f" → {SAMPLE_RATE} Hz mono, gain ×{gain:g}"
+    )
+
+    capture    = AudioCapture(device=mic_index, gain=gain)
     keyboard   = KbController()
     mouse      = MouseController()
 
@@ -758,6 +900,26 @@ if __name__ == "__main__":
         metavar="SECONDS",
         help="Debug: synthesise one press/release cycle of this record length",
     )
+    parser.add_argument(
+        "--device",
+        default=None,
+        metavar="INDEX|NAME",
+        help=(
+            "Audio input device as a PortAudio index or name substring "
+            f"(default: the first input matching {DEVICE_HINT!r}, i.e. the recorder; "
+            "pass 'default' to follow the Windows default device)"
+        ),
+    )
+    parser.add_argument(
+        "--gain",
+        type=float,
+        default=1.0,
+        metavar="X",
+        help=(
+            "Multiply the microphone signal by X before recognition "
+            "(default: 1.0; this recorder sits near -50 dBFS, so 4-8 often helps)"
+        ),
+    )
     args = parser.parse_args()
 
     if not args.local and args.gateway_autostart:
@@ -770,6 +932,14 @@ if __name__ == "__main__":
         shared_engine=gateway_engine(),
     )
     try:
-        run(client, TARGET_VID, TARGET_PID, dry_run=args.dry_run, simulate=args.simulate)
+        run(
+            client,
+            TARGET_VID,
+            TARGET_PID,
+            dry_run=args.dry_run,
+            simulate=args.simulate,
+            device_spec=args.device,
+            gain=args.gain,
+        )
     finally:
         shutdown_gateway()
