@@ -498,61 +498,69 @@ def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: 
         nonlocal last_bits, recording
         if not data:
             return
-        payload  = bytes(data)
-        current  = active_bits(payload)
-        pressed  = current - last_bits
-        released = last_bits - current
-        last_bits = current
+        payload = bytes(data)
+        # pywinusb's processing thread runs this with no exception guard of
+        # its own (core.py -> InputReportProcessingThread.run), so one bad
+        # report would otherwise kill the only thread delivering key events
+        # and leave every button dead until restart. Log and stay alive.
+        try:
+            current  = active_bits(payload)
+            pressed  = current - last_bits
+            released = last_bits - current
+            last_bits = current
 
-        if NEW_KEY in pressed:
-            keyboard.press(Key.esc)
-            keyboard.release(Key.esc)
-            print("[KEY] Esc (NEW)")
+            if NEW_KEY in pressed:
+                keyboard.press(Key.esc)
+                keyboard.release(Key.esc)
+                print("[KEY] Esc (NEW)")
 
-        if F1_KEY in pressed:
-            keyboard.press(Key.ctrl)
-            keyboard.press("c")
-            keyboard.release("c")
-            keyboard.release(Key.ctrl)
-            print("[KEY] Ctrl+C (F1)")
+            if F1_KEY in pressed:
+                keyboard.press(Key.ctrl)
+                keyboard.press("c")
+                keyboard.release("c")
+                keyboard.release(Key.ctrl)
+                print("[KEY] Ctrl+C (F1)")
 
-        if F4_KEY in pressed:
-            keyboard.press(Key.backspace)
-            keyboard.release(Key.backspace)
-            print("[KEY] Backspace (F4)")
+            if F4_KEY in pressed:
+                keyboard.press(Key.backspace)
+                keyboard.release(Key.backspace)
+                print("[KEY] Backspace (F4)")
 
-        if F2_KEY in pressed:
-            keyboard.type("continue")
-            print("[KEY] Type 'continue' (F2)")
+            if F2_KEY in pressed:
+                keyboard.type("continue")
+                print("[KEY] Type 'continue' (F2)")
 
-        if F3_KEY in pressed:
-            keyboard.press(Key.ctrl)
-            keyboard.press(Key.enter)
-            keyboard.release(Key.enter)
-            keyboard.release(Key.ctrl)
-            print("[KEY] Ctrl+Enter (F3)")
+            if F3_KEY in pressed:
+                keyboard.press(Key.ctrl)
+                keyboard.press(Key.enter)
+                keyboard.release(Key.enter)
+                keyboard.release(Key.ctrl)
+                print("[KEY] Ctrl+Enter (F3)")
 
-        if REW_KEY in pressed:
-            keyboard.press(Key.enter)
-            keyboard.release(Key.enter)
-            print("[KEY] Enter (REW)")
+            if REW_KEY in pressed:
+                keyboard.press(Key.enter)
+                keyboard.release(Key.enter)
+                print("[KEY] Enter (REW)")
 
-        if FF_KEY in pressed:
-            mouse.scroll(0, -4)
-            print("[MOUSE] ScrollDown (FF)")
+            if FF_KEY in pressed:
+                mouse.scroll(0, -4)
+                print("[MOUSE] ScrollDown (FF)")
 
-        if INSERT_OVER in pressed:
-            mouse.scroll(0, 4)
-            print("[MOUSE] ScrollUp (INSERT_OVER)")
+            if INSERT_OVER in pressed:
+                mouse.scroll(0, 4)
+                print("[MOUSE] ScrollUp (INSERT_OVER)")
 
-        if FAST_BACKWARD in pressed and not recording:
-            recording = True
-            session["id"] += 1
-            events.put(("press", session["id"]))
+            if FAST_BACKWARD in pressed and not recording:
+                recording = True
+                session["id"] += 1
+                events.put(("press", session["id"]))
 
-        if FAST_BACKWARD in released and recording:
-            recording = False
-            events.put(("release", session["id"]))
+            if FAST_BACKWARD in released and recording:
+                recording = False
+                events.put(("release", session["id"]))
+        except Exception as exc:  # noqa: BLE001
+            print(f"[HID] ! handler error on {payload.hex()}: "
+                  f"{type(exc).__name__}: {exc}")
 
     # -- main thread: drain events, animate ----------------------------------
     def pump() -> None:

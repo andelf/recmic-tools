@@ -114,8 +114,12 @@ class _MONITORINFO(ctypes.Structure):
     ]
 
 
-class _POINT(ctypes.Structure):
-    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+# ``ctypes.windll`` hands out one function object per process, so argtypes set
+# here also govern every other caller of user32.GetCursorPos — pynput included.
+# A look-alike structure of our own would fail its argument check at call time
+# ("expected LP__POINT instance instead of pointer to POINT"), so reuse the
+# stdlib definition; fields and layout are identical.
+_POINT = wt.POINT
 
 
 class _SIZE(ctypes.Structure):
