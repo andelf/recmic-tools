@@ -1,5 +1,7 @@
 # OLYMPUS DR Series HID Tools
 
+[简体中文](README.zh-CN.md) | English
+
 This repository contains practical tools and reverse-engineering scripts for an OLYMPUS DR Series USB/HID device on Windows.
 
 ## What Is Stable Now
@@ -98,7 +100,8 @@ Main packages:
 ## On-Screen Recording Indicator
 
 Holding `FAST_BACKWARD` pops a translucent pill near the bottom-centre of the
-monitor that currently has the mouse cursor, so there is always visible feedback
+monitor that hosts the foreground window — not the one under the cursor — so it
+appears wherever you are actually typing, and there is always visible feedback
 that dictation is armed.
 
 | State | Appearance |
@@ -130,7 +133,7 @@ Implementation details worth knowing before you touch it:
 Preview it without the hardware attached:
 
 ```powershell
-python .\overlay_demo.py 6      # 6 s of synthetic "speech", then transcribing/done
+python .\dev\overlay_demo.py 6   # 6 s of synthetic "speech", then transcribing/done
 ```
 
 Debug switches on the runtime itself:
@@ -216,7 +219,21 @@ it. That is fine for a personal tool where both halves die on the same Ctrl+C.
 python .\dictation.py --no-gateway-autostart   # probe but never spawn
 ```
 
+## ASR Model Setup
+
+Download and extract SenseVoice, or point `--model-dir` at an existing copy:
+
+```
+https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
+sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2
+```
+
+Covers Chinese, English, Japanese, Korean and Cantonese with automatic language
+detection and inverse text normalisation (ITN).
+
 ## Notes
 
 - Analysis scripts are intentionally separated under `analysis/`.
+- `logs/` and `*.bmp` are runtime artefacts and screen captures; both are
+  gitignored.
 - Scratch scripts can be cleaned up later if you want a stricter production-only repository layout.
