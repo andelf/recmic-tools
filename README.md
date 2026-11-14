@@ -43,7 +43,8 @@ Runtime actions configured in `dictation.py`:
 - `NEW`: sends `Esc`.
 - `F1`: sends `Ctrl+C`.
 - `F2`: types `continue`.
-- `F4`: sends `Backspace`.
+- `F3`: sends `Ctrl+Enter`.
+- `F4`: sends `Backspace`; hold to repeat (0.4 s delay, then ~22/s).
 - `REW`: sends `Enter`.
 - `FF`: mouse wheel down.
 - `INSERT_OVER`: mouse wheel up.

@@ -71,6 +71,9 @@ REW_KEY       = (1, 0x04)   # trigger one enter on press
 FF_KEY        = (1, 0x08)   # trigger mouse scroll down
 INSERT_OVER   = (4, 0x01)   # trigger mouse scroll up
 
+F4_REPEAT_DELAY    = 0.40   # hold F4 this long before backspace auto-repeats
+F4_REPEAT_INTERVAL = 0.045  # gap between auto-repeated backspaces
+
 TICK_MS       = 16          # overlay refresh interval (~60 fps)
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -451,6 +454,38 @@ def active_bits(payload: bytes):
     return result
 
 
+def _repeat_backspace(held: threading.Event, stop: threading.Event, emit) -> None:
+    """Hold-to-repeat driver for F4.
+
+    The HID report only flips state on the edges, so repetition cannot come from
+    the device — it is synthesised here. A tap produces nothing beyond the one
+    backspace already sent on press; holding past F4_REPEAT_DELAY starts a burst
+    at F4_REPEAT_INTERVAL. ``emit`` is called once per repeat.
+    """
+    while not stop.is_set():
+        if not held.wait(0.05):
+            continue
+        # Initial delay, interruptible by a release.
+        deadline = time.monotonic() + F4_REPEAT_DELAY
+        while time.monotonic() < deadline:
+            if not held.is_set() or stop.is_set():
+                break
+            time.sleep(0.01)
+        else:
+            while held.is_set() and not stop.is_set():
+                try:
+                    emit()
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[HID] ! backspace repeat failed: {type(exc).__name__}: {exc}")
+                    break
+                # Sleep in slices so a release is noticed promptly.
+                deadline = time.monotonic() + F4_REPEAT_INTERVAL
+                while time.monotonic() < deadline:
+                    if not held.is_set() or stop.is_set():
+                        break
+                    time.sleep(0.005)
+
+
 def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: float = 0.0):
     devices = hid.HidDeviceFilter(vendor_id=vid, product_id=pid).get_devices()
     if not devices:
@@ -469,6 +504,13 @@ def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: 
 
     last_bits: set = set()
     recording  = False
+
+    # F4 is hold-to-repeat backspace; f4_held mirrors "is the bit currently on".
+    f4_held = threading.Event()
+
+    def _backspace() -> None:
+        keyboard.press(Key.backspace)
+        keyboard.release(Key.backspace)
 
     def type_text(text: str) -> None:
         if dry_run:
@@ -522,9 +564,12 @@ def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: 
                 print("[KEY] Ctrl+C (F1)")
 
             if F4_KEY in pressed:
-                keyboard.press(Key.backspace)
-                keyboard.release(Key.backspace)
-                print("[KEY] Backspace (F4)")
+                f4_held.set()
+                _backspace()
+                print("[KEY] Backspace (F4, hold to repeat)")
+
+            if F4_KEY in released:
+                f4_held.clear()
 
             if F2_KEY in pressed:
                 keyboard.type("continue")
@@ -620,6 +665,10 @@ def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: 
             print(f"[+] Opened: {dev.vendor_name} / {dev.product_name}")
 
         print("\n[*] Ready — hold FAST_BACKWARD to dictate. Ctrl+C to quit.\n")
+
+        threading.Thread(
+            target=_repeat_backspace, args=(f4_held, stop, _backspace), daemon=True
+        ).start()
 
         if simulate > 0:
             # Debug aid: feed a synthetic HID report through the real handler so

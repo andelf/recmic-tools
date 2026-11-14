@@ -46,7 +46,7 @@
 | `F1`            | 发送 `Ctrl+C`             |
 | `F2`            | 输入文本 `continue`       |
 | `F3`            | 发送 `Ctrl+Enter`         |
-| `F4`            | 发送 `Backspace`          |
+| `F4`            | 发送 `Backspace`，按住连发（0.4 秒后开始，约 22 次/秒） |
 | `REW`           | 发送 `Enter`              |
 | `FF`            | 鼠标滚轮向下              |
 | `INSERT_OVER`   | 鼠标滚轮向上              |
