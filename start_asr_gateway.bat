@@ -10,7 +10,11 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 set ASR_GATEWAY_PORT=8799
-if "%QWEN_ASR_URL%"=="" set QWEN_ASR_URL=http://192.0.2.175:8790
+REM Remote Qwen3-ASR is opt-in. Point QWEN_ASR_URL at your GPU box, e.g.
+REM   set QWEN_ASR_URL=http://<gpu-host>:8790
+if "%QWEN_ASR_URL%"=="" (
+    echo [!] QWEN_ASR_URL not set - remote Qwen3-ASR disabled, using local SenseVoice only.
+)
 
 echo [*] ASR gateway on http://127.0.0.1:%ASR_GATEWAY_PORT%
 echo [*] Remote engine: %QWEN_ASR_URL%

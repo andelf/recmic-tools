@@ -654,7 +654,13 @@ def run(client: AsrClient, vid: int, pid: int, dry_run: bool = False, simulate: 
 # ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    default_model = r"C:\Users\<you>\.local\share\picc\sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
+    default_model = str(
+        Path.home()
+        / ".local"
+        / "share"
+        / "picc"
+        / "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
+    )
     parser = argparse.ArgumentParser(description="OLYMPUS DR dictation tool")
     parser.add_argument(
         "--model-dir",

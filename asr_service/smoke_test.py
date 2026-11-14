@@ -25,9 +25,14 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 DEFAULT_GATEWAY = "http://127.0.0.1:8799"
-DEFAULT_AUDIO = Path(
-    r"C:\Users\<you>\.local\share\picc"
-    r"\sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17\test_wavs\zh.wav"
+DEFAULT_AUDIO = (
+    Path.home()
+    / ".local"
+    / "share"
+    / "picc"
+    / "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
+    / "test_wavs"
+    / "zh.wav"
 )
 
 

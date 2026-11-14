@@ -61,9 +61,18 @@ REMOTE_PREFIX = _remote_parts.path.rstrip("/")
 BREAKER_THRESHOLD = int(os.environ.get("ASR_BREAKER_THRESHOLD", "3"))
 BREAKER_COOLDOWN = float(os.environ.get("ASR_BREAKER_COOLDOWN", "20"))
 
+# Portable default: derived from the user's home directory so the repo carries
+# no machine-specific absolute path. Point SENSEVOICE_MODEL_DIR elsewhere if the
+# model is installed outside ~/.local/share/picc.
 DEFAULT_MODEL_DIR = os.environ.get(
     "SENSEVOICE_MODEL_DIR",
-    r"C:\Users\<you>\.local\share\picc\sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17",
+    str(
+        Path.home()
+        / ".local"
+        / "share"
+        / "picc"
+        / "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17"
+    ),
 )
 SENSEVOICE_THREADS = int(os.environ.get("SENSEVOICE_THREADS", "2"))
 TARGET_SR = 16_000
@@ -446,7 +455,7 @@ async def asr(request: Request) -> JSONResponse:
                 payload.update(
                     engine="qwen3-asr",
                     fallback=False,
-                    engine_detail="Qwen3-ASR-0.6B @ 192.0.2.175",
+                    engine_detail=f"Qwen3-ASR-0.6B @ {REMOTE_HOST}",
                     gateway_ms=int((time.time() - started) * 1000),
                 )
                 log.info(
